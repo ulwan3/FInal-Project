@@ -1,0 +1,247 @@
+/* Responsive Design Styles */
+
+/* Large devices (desktops, less than 1200px) */
+@media (max-width: 1199.98px) {
+    .sidebar {
+        min-width: 250px;
+    }
+    
+    .main-content {
+        margin-left: 250px;
+    }
+}
+
+/* Medium devices (tablets, less than 992px) */
+@media (max-width: 767.98px) {
+    .navbar.fixed-top {
+        position: fixed;
+        width: 100%;
+    }
+    
+    #sidebar.position-fixed {
+        top: var(--header-height);
+        left: -100%;
+        width: 280px;
+        height: calc(100vh - var(--header-height));
+        transition: left 0.3s;
+        z-index: 1050;
+        box-shadow: 3px 0 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    #sidebar.position-fixed.show {
+        left: 0;
+    }
+    
+    main.col-md-9 {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    .navbar-toggler {
+        display: block;
+    }
+    
+    .stats-card .card-body h2 {
+        font-size: 1.5rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    /* Overlay untuk mobile - TAMBAHKAN ini */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: var(--header-height);
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1040;
+    }
+    
+    .sidebar-overlay.show {
+        display: block;
+    }
+}
+
+/* Small devices (landscape phones, less than 768px) */
+@media (max-width: 767.98px) {
+    .container-fluid {
+        padding: 0 10px;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    .progress {
+        height: 15px;
+    }
+    
+    .progress-bar {
+        font-size: 0.7rem;
+    }
+    
+    /* Login page adjustments */
+    .login-card {
+        margin: 1rem;
+    }
+    
+    /* Dashboard adjustments */
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .btn-toolbar {
+        justify-content: flex-start;
+    }
+}
+
+/* Extra small devices (portrait phones, less than 576px) */
+@media (max-width: 575.98px) {
+    .navbar-brand {
+        font-size: 1rem;
+    }
+    
+    .h2 {
+        font-size: 1.5rem;
+    }
+    
+    .card-header h5 {
+        font-size: 1.1rem;
+    }
+    
+    .table th,
+    .table td {
+        padding: 0.5rem;
+    }
+    
+    /* Forms */
+    .form-control {
+        font-size: 0.875rem;
+    }
+    
+    .btn {
+        font-size: 0.875rem;
+    }
+    
+    /* Modal adjustments */
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    .modal-content {
+        border-radius: 0.3rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .navbar,
+    .sidebar,
+    .btn-toolbar,
+    .btn {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+    }
+    
+    .table {
+        font-size: 12px;
+    }
+    
+    .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .card {
+        background-color: #2d3748;
+        border-color: #4a5568;
+    }
+    
+    .card-header {
+        background-color: #4a5568;
+        border-bottom-color: #718096;
+    }
+    
+    .table {
+        color: #e2e8f0;
+    }
+    
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: #4a5568;
+    }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    .btn {
+        border-width: 2px;
+    }
+    
+    .card {
+        border-width: 2px;
+    }
+    
+    .form-control {
+        border-width: 2px;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Mobile menu toggle */
+.navbar-toggler {
+    display: none;
+    border: none;
+    background: transparent;
+    padding: 0.25rem 0.5rem;
+    font-size: 1.25rem;
+}
+
+@media (max-width: 991.98px) {
+    .navbar-toggler {
+        display: block;
+    }
+}
+
+/* Sidebar overlay untuk mobile - TAMBAHKAN */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+}
+
+@media (max-width: 991.98px) {
+    .sidebar-overlay.show {
+        display: block;
+    }
+}
+
