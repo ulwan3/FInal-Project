@@ -3,6 +3,33 @@ $page_title = "Manajemen Transaksi";
 require_once '../config/config.php';
 
 /* =======================
+   DELETE (AJAX)
+======================= */
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    isset($_POST['action']) &&
+    $_POST['action'] === 'delete'
+) {
+    header('Content-Type: application/json');
+
+    $id = $_POST['id'] ?? null;
+    $user_id = $_SESSION['user_id'] ?? null;
+
+    if (!$id || !$user_id) {
+        echo json_encode(['success' => false]);
+        exit;
+    }
+
+    $stmt = $pdo->prepare(
+        "DELETE FROM transaksi WHERE id = ? AND user_id = ?"
+    );
+    $success = $stmt->execute([$id, $user_id]);
+
+    echo json_encode(['success' => $success]);
+    exit;
+}
+
+/* =======================
    AUTH
 ======================= */
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'mahasiswa') {
@@ -15,18 +42,6 @@ require_once '../includes/sidebar.php';
 
 $user_id = $_SESSION['user_id'];
 
-/* =======================
-   DELETE (AJAX)
-======================= */
-if (isset($_POST['action']) && $_POST['action'] === 'delete') {
-    $id = $_POST['id'];
-
-    $stmt = $pdo->prepare("DELETE FROM transaksi WHERE id=? AND user_id=?");
-    $success = $stmt->execute([$id, $user_id]);
-
-    echo json_encode(['success' => $success]);
-    exit;
-}
 
 /* =======================
    ADD / EDIT
@@ -156,18 +171,6 @@ $transactions = $stmt->fetchAll();
     </div>
 </div>
 
-<?php if (isset($_GET['success'])): ?>
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    <i class="fas fa-check-circle me-2"></i>
-    <?php 
-    if ($_GET['success'] == 'add') echo "Transaksi berhasil ditambahkan!";
-    if ($_GET['success'] == 'edit') echo "Transaksi berhasil diperbarui!";
-    if ($_GET['success'] == 'delete') echo "Transaksi berhasil dihapus!";
-    ?>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-<?php endif; ?>
-
 <?php if (isset($error)): ?>
 <div class="alert alert-danger alert-dismissible fade show" role="alert">
     <i class="fas fa-exclamation-circle me-2"></i><?php echo $error; ?>
@@ -222,11 +225,13 @@ $transactions = $stmt->fetchAll();
                             <option value="">Pilih Mata Uang</option>
                             <?php foreach ($currencies as $currency): ?>
                             <option value="<?php echo $currency['id']; ?>" 
-                                    data-kurs="<?php echo $currency['nilai_kurs_terhadap_idr']; ?>">
+                                    data-kurs="<?php echo $currency['nilai_kurs_terhadap_idr']; ?>"
+                                    <?php echo isset($_POST['mata_uang_id']) && $_POST['mata_uang_id'] == $currency['id'] ? 'selected' : ''; ?>>
                                 <?php echo $currency['kode_uang'] . ' - ' . $currency['nama_uang']; ?>
                             </option>
                             <?php endforeach; ?>
                         </select>
+                        <div class="invalid-feedback">Pilih mata uang</div>
                     </div>
                     
                     <div class="mb-3">
@@ -309,14 +314,12 @@ $transactions = $stmt->fetchAll();
                                 <td>
                                     <button class="btn btn-sm btn-warning btn-edit me-1"
                                             data-id="<?php echo $transaction['id']; ?>"
-                                            data-json='<?php echo htmlspecialchars(json_encode($transaction), ENT_QUOTES, 'UTF-8'); ?>'
+                                            data-json='<?php echo json_encode($transaction); ?>'
                                             title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <button class="btn btn-sm btn-danger btn-delete"
                                             data-id="<?php echo $transaction['id']; ?>"
-                                            data-deskripsi="<?php echo htmlspecialchars($transaction['deskripsi'] ?: $transaction['nama_kategori'], ENT_QUOTES, 'UTF-8'); ?>"
-                                            data-jumlah="<?php echo htmlspecialchars(number_format($transaction['jumlah'], 2, ',', '.') . ' ' . $transaction['kode_uang'], ENT_QUOTES, 'UTF-8'); ?>"
                                             title="Hapus">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -367,7 +370,215 @@ $transactions = $stmt->fetchAll();
     </div>
 </div>
 
-<!-- Include JavaScript file -->
-<script src="../assets/js/transaksi.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('transactionForm');
+    const submitBtn = document.getElementById('submitBtn');
+    let isSubmitting = false;
+
+    // Filter kategori berdasarkan jenis transaksi
+    const jenisSelect = document.getElementById('jenis');
+    const kategoriSelect = document.getElementById('kategori_id');
+    
+    if (jenisSelect && kategoriSelect) {
+        const filterCategories = () => {
+            const selectedType = jenisSelect.value;
+            const options = kategoriSelect.options;
+            
+            // Reset selection ketika jenis berubah
+            if (kategoriSelect.value && selectedType) {
+                const selectedOption = options[kategoriSelect.selectedIndex];
+                if (selectedOption && selectedOption.dataset.tipe !== selectedType) {
+                    kategoriSelect.value = '';
+                }
+            }
+            
+            for (let i = 0; i < options.length; i++) {
+                const option = options[i];
+                if (option.value === '') continue;
+                
+                const optionType = option.dataset.tipe;
+                if (selectedType === '' || optionType === selectedType) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            }
+        };
+        
+        jenisSelect.addEventListener('change', filterCategories);
+        filterCategories(); // Initial filter
+    }
+
+    // Konversi mata uang real-time
+    const jumlahInput = document.getElementById('jumlah');
+    const mataUangSelect = document.getElementById('mata_uang_id');
+    
+    if (jumlahInput && mataUangSelect) {
+        const conversionInfo = document.createElement('div');
+        conversionInfo.className = 'form-text text-info mt-1';
+        conversionInfo.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Nilai akan dikonversi ke IDR';
+        
+        const updateConversion = () => {
+            const amount = parseFloat(jumlahInput.value) || 0;
+            const selectedOption = mataUangSelect.options[mataUangSelect.selectedIndex];
+            const rate = selectedOption ? parseFloat(selectedOption.dataset.kurs) : 0;
+            
+            if (amount > 0 && rate > 0) {
+                const idrAmount = amount * rate;
+                conversionInfo.innerHTML = `
+                    <i class="fas fa-exchange-alt me-1"></i>
+                    <strong>Rp ${idrAmount.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
+                    <small class="text-muted">(Konversi ke IDR)</small>
+                `;
+            } else {
+                conversionInfo.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Nilai akan dikonversi ke IDR';
+            }
+        };
+        
+        jumlahInput.addEventListener('input', updateConversion);
+        mataUangSelect.addEventListener('change', updateConversion);
+        
+        // Tambahkan info konversi ke DOM
+        if (!mataUangSelect.parentNode.querySelector('.conversion-info')) {
+            conversionInfo.classList.add('conversion-info');
+            mataUangSelect.parentNode.appendChild(conversionInfo);
+        }
+        
+        updateConversion();
+    }
+
+    // Form validation
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (isSubmitting) {
+                return;
+            }
+
+            // Validate form
+            if (!form.checkValidity()) {
+                e.stopPropagation();
+                form.classList.add('was-validated');
+                return;
+            }
+
+            // Disable submit button
+            isSubmitting = true;
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Menyimpan...';
+            submitBtn.disabled = true;
+
+            // Submit form secara manual
+            const formData = new FormData(form);
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                // Redirect akan ditangani oleh PHP
+                window.location.href = 'transaksi.php?success=1';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Terjadi kesalahan. Silakan coba lagi.');
+            })
+            .finally(() => {
+                // Reset button state setelah 3 detik (fallback)
+                setTimeout(() => {
+                    isSubmitting = false;
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }, 3000);
+            });
+        });
+
+        // Real-time validation
+        const inputs = form.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            input.addEventListener('input', function() {
+                if (this.checkValidity()) {
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                } else {
+                    this.classList.remove('is-valid');
+                    this.classList.add('is-invalid');
+                }
+            });
+        });
+    }
+
+    // Set max date untuk tanggal transaksi
+    const tanggalInput = document.getElementById('tanggal_transaksi');
+    if (tanggalInput) {
+        const today = new Date().toISOString().split('T')[0];
+        tanggalInput.max = today;
+    }
+});
+document.addEventListener('click', function (e) {
+
+    /* ======================
+       EDIT TRANSAKSI
+    ====================== */
+    if (e.target.closest('.btn-edit')) {
+        const btn = e.target.closest('.btn-edit');
+        const data = JSON.parse(btn.dataset.json);
+
+        // Isi form
+        document.getElementById('transaksi_id').value = data.id;
+        document.getElementById('jenis').value = data.jenis;
+        document.getElementById('jumlah').value = data.jumlah;
+        document.getElementById('mata_uang_id').value = data.mata_uang_id;
+        document.getElementById('deskripsi').value = data.deskripsi;
+        document.getElementById('tanggal_transaksi').value = data.tanggal_transaksi;
+
+        // Trigger filter kategori
+        document.getElementById('jenis').dispatchEvent(new Event('change'));
+
+        setTimeout(() => {
+            document.getElementById('kategori_id').value = data.kategori_id;
+        }, 100);
+
+        // Mode Edit UI
+        document.getElementById('formTitle').innerHTML =
+            '<i class="fas fa-edit me-2"></i>Edit Transaksi';
+
+        const btnSubmit = document.getElementById('submitBtn');
+        btnSubmit.innerHTML = '<i class="fas fa-save me-2"></i>Update Transaksi';
+        btnSubmit.classList.remove('btn-primary');
+        btnSubmit.classList.add('btn-warning');
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* ======================
+       DELETE TRANSAKSI
+    ====================== */
+    if (e.target.closest('.btn-delete')) {
+        const btn = e.target.closest('.btn-delete');
+        const id = btn.dataset.id;
+        
+
+        fetch('transaksi.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=delete&id=${id}`
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.success) {
+                // Hapus baris dari tabel
+                const row = btn.closest('tr');
+                row.remove();
+            } else {
+                alert('Gagal menghapus transaksi');
+            }
+        });
+    }
+
+});
+</script>
 
 <?php require_once '../includes/footer.php'; ?>

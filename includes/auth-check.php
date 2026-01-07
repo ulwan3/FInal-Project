@@ -1,7 +1,14 @@
 <?php
-/**
- * Authentication Check - Memastikan user sudah login dan memiliki akses yang sesuai
- */
+
+// PASTIKAN SESSION START DIPANGGIL
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// CACHE CONTROL UNTUK MENCEGAH BROWSER CACHE
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
 
 function checkAuth() {
     if (!isset($_SESSION['user_id'])) {

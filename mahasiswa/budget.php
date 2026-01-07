@@ -10,9 +10,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'mahasiswa') {
     exit;
 }
 
-require_once '../includes/header.php';
-require_once '../includes/sidebar.php';
-
 $user_id = $_SESSION['user_id'];
 
 /* =======================
@@ -119,6 +116,9 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$user_id, $user_id]);
 $budgets_data = $stmt->fetchAll();
+
+require_once '../includes/header.php';
+require_once '../includes/sidebar.php';
 ?>
 
 <div class="content-header fade-in">
@@ -129,39 +129,24 @@ $budgets_data = $stmt->fetchAll();
         </div>
     </div>
 </div>
-
-<?php if (isset($_GET['success'])): ?>
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-    <i class="fas fa-check-circle me-2"></i>
-    <?php 
-    if ($_GET['success'] == 'add') echo "Budget berhasil ditambahkan!";
-    if ($_GET['success'] == 'edit') echo "Budget berhasil diperbarui!";
-    if ($_GET['success'] == 'delete') echo "Budget berhasil dihapus!";
-    ?>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-<?php endif; ?>
-
 <!-- =======================
      CONTENT
 ======================= -->
-<div class="row fade-in">
+<div class="row">
     <!-- FORM -->
-    <div class="col-lg-4 mb-4">
+    <div class="col-lg-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0" id="formTitle">
-                    <i class="fas fa-plus-circle me-2"></i>Tambah Budget
-                </h5>
+                <h5 id="formTitle">Tambah Budget</h5>
             </div>
             <div class="card-body">
                 <form method="POST" id="budgetForm">
                     <input type="hidden" name="budget_id" id="budget_id">
 
                     <div class="mb-3">
-                        <label class="form-label">Kategori *</label>
+                        <label>Kategori *</label>
                         <select class="form-select" name="kategori_id" id="kategori_id" required>
-                            <option value="">Pilih Kategori</option>
+                            <option value="">Pilih</option>
                             <?php foreach ($categories as $c): ?>
                                 <option value="<?= $c['id']; ?>">
                                     <?= $c['nama_kategori']; ?>
@@ -171,29 +156,29 @@ $budgets_data = $stmt->fetchAll();
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Jumlah Budget (IDR) *</label>
+                        <label>Jumlah Budget *</label>
                         <input type="number" name="jumlah_budget" id="jumlah_budget"
-                               class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+                               class="form-control" required>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Periode *</label>
+                        <label>Periode *</label>
                         <select name="periode" id="periode" class="form-select" required>
-                            <option value="">Pilih Periode</option>
+                            <option value="">Pilih</option>
                             <option value="bulanan">Bulanan</option>
                             <option value="semester">Semester</option>
                             <option value="tahunan">Tahunan</option>
                         </select>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="form-label">Tanggal Mulai *</label>
+                    <div class="mb-3">
+                        <label>Tanggal Mulai *</label>
                         <input type="date" name="tanggal_mulai" id="tanggal_mulai"
                                class="form-control" value="<?= date('Y-m-d'); ?>" required>
                     </div>
 
-                    <button class="btn btn-primary w-100 py-3" id="submitBtn">
-                        <i class="fas fa-save me-2"></i>Simpan Budget
+                    <button class="btn btn-primary w-100" id="submitBtn">
+                        Simpan Budget
                     </button>
                 </form>
             </div>
@@ -201,7 +186,7 @@ $budgets_data = $stmt->fetchAll();
     </div>
 
     <!-- TABLE -->
-    <div class="col-lg-8">
+   <div class="col-lg-8">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-list me-2"></i>Daftar Budget</h5>
@@ -296,151 +281,40 @@ $budgets_data = $stmt->fetchAll();
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    /* =======================
-       EDIT FUNCTION
-    ======================= */
-    document.querySelectorAll('.btn-edit').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const data = JSON.parse(this.dataset.json);
-            
-            // Isi form dengan data budget
-            document.getElementById('budget_id').value = data.id;
-            document.getElementById('kategori_id').value = data.kategori_id;
-            document.getElementById('jumlah_budget').value = data.jumlah_budget;
-            document.getElementById('periode').value = data.periode;
-            document.getElementById('tanggal_mulai').value = data.tanggal_mulai;
-            
-            // Update UI
-            document.getElementById('submitBtn').innerHTML = '<i class="fas fa-sync-alt me-2"></i>Update Budget';
-            document.getElementById('formTitle').innerHTML = '<i class="fas fa-edit me-2"></i>Edit Budget';
-            
-            // Scroll ke form
-            window.scrollTo({top: 0, behavior: 'smooth'});
-        });
-    });
+/* =======================
+   EDIT
+======================= */
+document.querySelectorAll('.btn-edit').forEach(btn => {
+    btn.onclick = () => {
+        const d = JSON.parse(btn.dataset.json);
 
-    /* =======================
-       DELETE FUNCTION
-    ======================= */
-    document.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const budgetId = this.dataset.id;
-            const row = this.closest('tr');
-            const kategori = row.querySelector('td:first-child strong').textContent;
-            const jumlah = row.querySelector('td:nth-child(2)').textContent;
-            
-            if (confirm(`Hapus budget:\n${kategori}\n${jumlah}?\n\nAksi ini tidak dapat dibatalkan.`)) {
-                fetch('budget.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams({
-                        action: 'delete',
-                        id: budgetId
-                    })
-                })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.success) {
-                        // Hapus row dari table
-                        row.remove();
-                        
-                        // Update total count
-                        const totalBadge = document.querySelector('.badge.bg-primary');
-                        if (totalBadge) {
-                            const currentTotal = parseInt(totalBadge.textContent.match(/\d+/)[0]) || 0;
-                            totalBadge.textContent = `Total: ${currentTotal - 1} Budget`;
-                        }
-                        
-                        // Show success message
-                        alert('Budget berhasil dihapus!');
-                    } else {
-                        alert('Gagal menghapus budget!');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Terjadi kesalahan saat menghapus budget!');
-                });
-            }
-        });
-    });
+        budget_id.value = d.id;
+        kategori_id.value = d.kategori_id;
+        jumlah_budget.value = d.jumlah_budget;
+        periode.value = d.periode;
+        tanggal_mulai.value = d.tanggal_mulai;
 
-    // Reset form ketika semua field kosong
-    const form = document.getElementById('budgetForm');
-    form.addEventListener('reset', function() {
-        document.getElementById('submitBtn').innerHTML = '<i class="fas fa-save me-2"></i>Simpan Budget';
-        document.getElementById('formTitle').innerHTML = '<i class="fas fa-plus-circle me-2"></i>Tambah Budget';
-    });
-
-    // Set max date untuk tanggal mulai
-    const tanggalInput = document.getElementById('tanggal_mulai');
-    if (tanggalInput) {
-        const today = new Date().toISOString().split('T')[0];
-        tanggalInput.max = today;
+        submitBtn.innerText = 'Update Budget';
+        document.getElementById('formTitle').innerText = 'Edit Budget';
+        window.scrollTo({top:0, behavior:'smooth'});
     }
+});
 
-    // Form validation
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            if (!this.checkValidity()) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            this.classList.add('was-validated');
+/* =======================
+   DELETE
+======================= */
+document.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.onclick = () => {
+
+        fetch('budget.php', {
+            method: 'POST',
+            headers: {'Content-Type':'application/x-www-form-urlencoded'},
+            body: `action=delete&id=${btn.dataset.id}`
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) btn.closest('tr').remove();
         });
-    }
-
-    // Auto-hitung tanggal selesai
-    const periodeSelect = document.getElementById('periode');
-    const tanggalMulaiInput = document.getElementById('tanggal_mulai');
-    
-    if (periodeSelect && tanggalMulaiInput) {
-        const updateEndDate = () => {
-            const startDate = new Date(tanggalMulaiInput.value);
-            const period = periodeSelect.value;
-            
-            if (startDate && period) {
-                let endDate = new Date(startDate);
-                
-                switch (period) {
-                    case 'bulanan':
-                        endDate.setMonth(endDate.getMonth() + 1);
-                        endDate.setDate(endDate.getDate() - 1);
-                        break;
-                    case 'semester':
-                        endDate.setMonth(endDate.getMonth() + 6);
-                        endDate.setDate(endDate.getDate() - 1);
-                        break;
-                    case 'tahunan':
-                        endDate.setFullYear(endDate.getFullYear() + 1);
-                        endDate.setDate(endDate.getDate() - 1);
-                        break;
-                }
-                
-                // Display end date info
-                let endDateInfo = document.getElementById('end-date-info');
-                if (!endDateInfo) {
-                    endDateInfo = document.createElement('div');
-                    endDateInfo.id = 'end-date-info';
-                    endDateInfo.className = 'form-text text-info mt-1';
-                    tanggalMulaiInput.parentNode.appendChild(endDateInfo);
-                }
-                
-                endDateInfo.innerHTML = `
-                    <i class="fas fa-calendar me-1"></i>
-                    Budget akan berakhir pada: <strong>${endDate.toLocaleDateString('id-ID')}</strong>
-                `;
-            }
-        };
-        
-        periodeSelect.addEventListener('change', updateEndDate);
-        tanggalMulaiInput.addEventListener('change', updateEndDate);
-        
-        // Initial calculation
-        updateEndDate();
     }
 });
 </script>
